@@ -1,12 +1,12 @@
 // eslint-disable unicorn/no-abusive-eslint-disable
-import test from 'ava'
-import fs from 'fs-extra'
-import tempy from 'tempy'
-import DependencyReport from '../lib/dependency-report'
+import { test } from 'node:test'
+import assert from 'node:assert/strict'
+import fs from 'node:fs/promises'
+import { temporaryFile } from 'tempy'
+import DependencyReport from '../lib/dependency-report.js'
 
-const fileContents = []
-
-fileContents.push(`
+const fileContents = [
+`
 import React from 'react'
 import {
   Pane as EGPane,
@@ -18,9 +18,8 @@ import Dialog from 'ui/Dialog'
 function justSomeCode() {
 
 }
-`)
-
-fileContents.push(`
+`,
+`
 import React, { PropTypes } from 'react'
 import { filter } from 'lodash'
 import {
@@ -35,9 +34,8 @@ import Dialog from 'ui/Dialog'
 function justSomeCode() {
 
 }
-`)
-
-fileContents.push(`
+`,
+`
 import React from 'react'
 import _ from 'lodash'
 import {
@@ -54,10 +52,8 @@ import {
 function justSomeCode() {
 
 }
-`)
-
-fileContents.push([
-  `
+`,[
+`
 import React from 'react'
 import { Text } from 'evergreen-ui'
 
@@ -71,10 +67,11 @@ export default function mcCode(_value: string) {
 }
 `,
   'tsx'
-])
+]
+]
 
 const setup = async () => {
-  const arr = fileContents.map(async file => {
+  const filePromises = fileContents.map(async file => {
     let content = file
     let extension = 'js'
 
@@ -83,36 +80,36 @@ const setup = async () => {
       extension = file[1]
     }
 
-    const filePath = tempy.file({ extension })
+    const filePath = temporaryFile({ extension })
     await fs.writeFile(filePath, content)
     return filePath
   })
-  const files = Promise.all(arr)
+  const files = await Promise.all(filePromises)
 
   return files
 }
 
-test('run a report over a single file', async t => {
+test('run a report over a single file', async (_t) => {
   const files = await setup()
 
   const report = new DependencyReport({
     files: [files[0]]
   })
 
-  t.notThrows(async () => report.run())
+  await assert.doesNotReject(async () => report.run())
 })
 
-test('run a report over a multiple files', async t => {
+test('run a report over a multiple files', async (_t) => {
   const files = await setup()
   const report = new DependencyReport({
     files,
     parser: 'typescript'
   })
 
-  t.notThrows(async () => report.run())
+  await assert.doesNotReject(async () => report.run())
 })
 
-test('get the usage of a package over a single file', async t => {
+test('get the usage of a package over a single file', async (_t) => {
   const files = await setup()
 
   const report = new DependencyReport({
@@ -125,7 +122,7 @@ test('get the usage of a package over a single file', async t => {
   const evergreenPackage = report.getPackages('evergreen-ui')[0]
 
   const usage = evergreenPackage.exportsUsage()
-  t.deepEqual(usage, [
+  assert.deepEqual(usage, [
     { name: 'Text', usage: 4 },
     { name: 'Pane', usage: 3 },
     { name: 'Card', usage: 3 },
@@ -137,7 +134,7 @@ test('get the usage of a package over a single file', async t => {
   ])
 })
 
-test('get the usage of a single export for a package', async t => {
+test('get the usage of a single export for a package', async (_t) => {
   const files = await setup()
 
   const report = new DependencyReport({
@@ -151,10 +148,10 @@ test('get the usage of a single export for a package', async t => {
 
   const usage = evergreenPackage.exportsUsage('Pane')
 
-  t.is(usage, 3)
+  assert.equal(usage, 3)
 })
 
-test('get the usage by export name', async t => {
+test('get the usage by export name', async (_t) => {
   const files = await setup()
 
   const report = new DependencyReport({
@@ -166,11 +163,11 @@ test('get the usage by export name', async t => {
 
   const exportUsage = report.getByExportNames('Dialog')[0]
 
-  t.is(exportUsage.packages['ui/Dialog'].usage, 2)
-  t.is(exportUsage.packages['evergreen-ui'].usage, 1)
+  assert.equal(exportUsage.packages['ui/Dialog'].usage, 2)
+  assert.equal(exportUsage.packages['evergreen-ui'].usage, 1)
 })
 
-test('get the complete snapshot', async t => {
+test('get the complete snapshot', async (_t) => {
   const files = await setup()
 
   const report = new DependencyReport({
@@ -180,5 +177,5 @@ test('get the complete snapshot', async t => {
 
   await report.run()
 
-  t.notThrows(() => JSON.stringify(report.toPlainObject(), null, 2))
+  assert.doesNotThrow(() => JSON.stringify(report.toPlainObject(), null, 2))
 })
