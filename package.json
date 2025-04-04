@@ -25,7 +25,7 @@
     "test": "xo && node --test test/*.js"
   },
   "engines": {
-    "node": ">=23.3.0"
+    "node": ">=22.14.0"
   },
   "dependencies": {
     "@babel/parser": "^7.4.4",
